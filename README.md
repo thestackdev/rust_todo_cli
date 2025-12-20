@@ -5,9 +5,10 @@ A simple command-line todo list application written in Rust.
 ## Features
 
 - Add new todo items
-- Delete existing todos
+- Delete todos by name
 - List all todos with their status
 - Mark todos as done/not done
+- Fast lookups using HashMap storage
 
 ## Usage
 
@@ -23,6 +24,8 @@ Then follow the interactive menu:
 3. To List Todo Items
 4. To Update the Todo Item
 ```
+
+Todos are identified by their name, so enter the exact todo text when deleting or updating.
 
 ## Building
 

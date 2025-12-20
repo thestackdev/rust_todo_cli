@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Write};
 
@@ -8,7 +9,7 @@ enum TodoMenu {
     Update,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Todo {
     item: String,
     is_done: bool,
@@ -16,18 +17,20 @@ struct Todo {
 
 impl fmt::Display for Todo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} is_done: {}", self.item, self.is_done)
+        write!(f, "\n\nTask: {}\nis_done: {}", self.item, self.is_done)
     }
 }
 
 #[derive(Debug)]
 struct TodoList {
-    todos: Vec<Todo>,
+    todos: HashMap<String, Todo>,
 }
 
 impl TodoList {
     fn new() -> Self {
-        Self { todos: Vec::new() }
+        Self {
+            todos: HashMap::new(),
+        }
     }
 
     fn print_menu(&self) {
@@ -63,77 +66,80 @@ impl TodoList {
         flush_output();
 
         read(&mut input);
-        self.todos.push(Todo {
-            item: input.trim().to_string(),
-            is_done: false,
-        });
+        self.todos.insert(
+            input.trim().to_string(),
+            Todo {
+                item: input.trim().to_string(),
+                is_done: false,
+            },
+        );
     }
 
-    fn get_todo_position(&self) -> Option<usize> {
+    fn get_todo_item(&self) -> Option<Todo> {
         let mut input = String::new();
         read(&mut input);
-
-        match input.trim().parse::<usize>() {
-            Ok(num) => {
-                if num < self.todos.len() {
-                    return Some(num);
-                }
-                println!("No todo found at the given position");
-                None
-            }
-            Err(e) => {
-                print!("Failed to parse position {}", e);
-                None
-            }
-        }
+        self.todos.get(input.trim()).cloned()
     }
 
     fn delete(&mut self) {
-        print!("Please enter the position of the todo to delete: ");
+        print!("Please enter the name of the todo to delete: ");
         flush_output();
 
-        match self.get_todo_position() {
-            Some(num) => {
-                self.todos.remove(num);
+        match self.get_todo_item() {
+            Some(item) => {
+                self.todos.remove(&item.item);
             }
             _ => {
-                println!("Unable to parse position");
+                println!("Todo not found");
             }
         };
     }
 
     fn update_todo(&mut self) {
-        print!("Enter the todo position of the todo to update: ");
+        print!("Enter the name of the todo to update: ");
         flush_output();
 
-        match self.get_todo_position() {
-            Some(num) => {
+        match self.get_todo_item() {
+            Some(item) => {
                 print!("Enter y/n to update the todo");
                 flush_output();
                 let mut input = String::new();
                 read(&mut input);
 
                 match input.trim() {
-                    "y" => {
-                        self.todos[num].is_done = true;
-                        println!("{}", self.todos[num]);
-                    }
-                    "n" => {
-                        self.todos[num].is_done = false;
-                        println!("{}", self.todos[num]);
+                    "y" | "n" => {
+                        let response = self.todos.insert(
+                            item.item.to_string(),
+                            Todo {
+                                item: item.item,
+                                is_done: input.trim() == "y",
+                            },
+                        );
+                        match response {
+                            Some(inserted) => {
+                                println!(
+                                    "Todo: {}, Update to {}",
+                                    inserted.item,
+                                    input.trim() == "y"
+                                )
+                            }
+                            _ => {
+                                println!("Failed to insert item");
+                            }
+                        }
                     }
                     _ => {
                         println!("Please enter the y/n");
                     }
                 }
             }
-            _ => println!("Unable to parse position"),
+            _ => println!("Todo not found"),
         }
     }
 
     fn list(&self) {
-        for (index, todo) in self.todos.iter().enumerate() {
-            println!("{index}. Todo: {}; Status: {}", todo.item, todo.is_done);
+        for todo in self.todos.values() {
+            println!("{}", todo);
         }
     }
 }
