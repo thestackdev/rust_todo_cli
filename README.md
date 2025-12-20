@@ -10,6 +10,18 @@ A simple command-line todo list application written in Rust.
 - Mark todos as done/not done
 - Fast lookups using HashMap storage
 
+## Project Structure
+
+```
+src/
+├── lib.rs        # Public API exports
+├── main.rs       # Binary entry point
+├── menu.rs       # TodoMenu enum
+├── todo.rs       # Todo struct
+├── todo_list.rs  # TodoList operations
+└── utils.rs      # I/O helpers
+```
+
 ## Usage
 
 ```bash
@@ -26,6 +38,14 @@ Then follow the interactive menu:
 ```
 
 Todos are identified by their name, so enter the exact todo text when deleting or updating.
+
+## As a Library
+
+```rust
+use todo_app::{TodoList, Todo};
+
+let mut list = TodoList::default();
+```
 
 ## Building
 
