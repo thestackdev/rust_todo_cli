@@ -3,5 +3,5 @@ pub enum TodoMenu {
     Add,
     Delete,
     Update,
+    Quit,
 }
-

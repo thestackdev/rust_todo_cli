@@ -9,6 +9,7 @@ A simple command-line todo list application written in Rust.
 - List all todos with their status
 - Mark todos as done/not done
 - Fast lookups using HashMap storage
+- Persistent storage with JSON (auto-saves after each change)
 
 ## Project Structure
 
@@ -35,9 +36,12 @@ Then follow the interactive menu:
 2. To Delete a Todo Item
 3. To List Todo Items
 4. To Update the Todo Item
+5. Quit
 ```
 
 Todos are identified by their name, so enter the exact todo text when deleting or updating.
+
+Todos are saved to `todos.json` in the current directory.
 
 ## As a Library
 

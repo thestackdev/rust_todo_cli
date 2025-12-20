@@ -1,10 +1,35 @@
 use std::collections::HashMap;
+use std::fs;
 
 use crate::{Todo, TodoMenu, flush_output, read};
 
-#[derive(Debug, Default)]
+const TODOS_FILE: &str = "todos.json";
+
+#[derive(Debug)]
 pub struct TodoList {
     todos: HashMap<String, Todo>,
+}
+
+impl Default for TodoList {
+    fn default() -> Self {
+        let contents = match fs::read_to_string(TODOS_FILE) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Failed to read file {}", e);
+                String::new()
+            }
+        };
+        let load_from_disk: HashMap<String, Todo> = match serde_json::from_str(&contents) {
+            Ok(data) => data,
+            Err(_) => {
+                println!("Initialising...");
+                HashMap::new()
+            }
+        };
+        Self {
+            todos: load_from_disk,
+        }
+    }
 }
 
 impl TodoList {
@@ -21,6 +46,7 @@ impl TodoList {
 2. To Delete a Todo Item
 3. To List Todo Items
 4. To Update the Todo Item
+5. Quit
         "
         );
 
@@ -36,6 +62,7 @@ impl TodoList {
             "2" => Ok(TodoMenu::Delete),
             "3" => Ok(TodoMenu::List),
             "4" => Ok(TodoMenu::Update),
+            "5" => Ok(TodoMenu::Quit),
             _ => Err("Not a valid menu option"),
         }
     }
@@ -54,6 +81,7 @@ impl TodoList {
                 is_done: false,
             },
         );
+        self.save();
     }
 
     pub fn delete(&mut self) {
@@ -68,6 +96,7 @@ impl TodoList {
                 println!("Todo not found");
             }
         };
+        self.save();
     }
 
     pub fn update_todo(&mut self) {
@@ -76,7 +105,7 @@ impl TodoList {
 
         match self.get_todo_item() {
             Some(item) => {
-                print!("Enter y/n to update the todo");
+                print!("Enter y/n to update the todo: ");
                 flush_output();
                 let mut input = String::new();
                 read(&mut input);
@@ -110,11 +139,26 @@ impl TodoList {
             }
             _ => println!("Todo not found"),
         }
+        self.save();
     }
 
     pub fn list(&self) {
         for todo in self.todos.values() {
             println!("{}", todo);
+        }
+    }
+
+    pub fn save(&self) {
+        let result = match serde_json::to_string_pretty(&self.todos) {
+            Ok(result) => result,
+            Err(err) => {
+                println!("Failed to save file {err}");
+                return;
+            }
+        };
+
+        if let Err(e) = fs::write(TODOS_FILE, result) {
+            println!("Failed to save file {}", e);
         }
     }
 }

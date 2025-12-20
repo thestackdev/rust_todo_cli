@@ -12,6 +12,10 @@ fn main() {
             Ok(TodoMenu::Add) => todolist.add(),
             Ok(TodoMenu::Delete) => todolist.delete(),
             Ok(TodoMenu::Update) => todolist.update_todo(),
+            Ok(TodoMenu::Quit) => {
+                todolist.save();
+                break;
+            }
             Err(e) => println!("{}", e),
         };
     }
