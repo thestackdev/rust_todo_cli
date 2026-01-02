@@ -1,42 +1,16 @@
-use std::collections::HashMap;
-use std::fs;
-
 use crate::{Todo, TodoMenu, flush_output, read};
-
-const TODOS_FILE: &str = "todos.json";
+use rusqlite::{Connection, Result};
+use tabled::{Table, Tabled};
 
 #[derive(Debug)]
 pub struct TodoList {
-    todos: HashMap<String, Todo>,
-}
-
-impl Default for TodoList {
-    fn default() -> Self {
-        let contents = match fs::read_to_string(TODOS_FILE) {
-            Ok(data) => data,
-            Err(e) => {
-                println!("Failed to read file {}", e);
-                String::new()
-            }
-        };
-        let load_from_disk: HashMap<String, Todo> = match serde_json::from_str(&contents) {
-            Ok(data) => data,
-            Err(_) => {
-                println!("Initialising...");
-                HashMap::new()
-            }
-        };
-        Self {
-            todos: load_from_disk,
-        }
-    }
+    connection: Connection,
+    todos: Vec<Todo>,
 }
 
 impl TodoList {
-    fn get_todo_item(&self) -> Option<Todo> {
-        let mut input = String::new();
-        read(&mut input);
-        self.todos.get(input.trim()).cloned()
+    pub fn new(connection: Connection, todos: Vec<Todo>) -> Self {
+        Self { connection, todos }
     }
 
     pub fn print_menu(&self) {
@@ -67,6 +41,29 @@ impl TodoList {
         }
     }
 
+    fn get_todo_item(&self) -> Option<Todo> {
+        let mut input = String::new();
+        read(&mut input);
+
+        let item = self
+            .connection
+            .query_row("select * from todos where id = ?1", [input], |row| {
+                Ok(Todo {
+                    id: row.get(0)?,
+                    item: row.get(1)?,
+                    is_done: row.get(2)?,
+                })
+            });
+
+        match item {
+            Result::Ok(todo) => Some(todo),
+            Result::Err(e) => {
+                println!("Todo not found {}", e);
+                None
+            }
+        }
+    }
+
     pub fn add(&mut self) {
         let mut input = String::new();
         print!("Please enter todo to add: ");
@@ -74,29 +71,30 @@ impl TodoList {
         flush_output();
 
         read(&mut input);
-        self.todos.insert(
-            input.trim().to_string(),
-            Todo {
-                item: input.trim().to_string(),
-                is_done: false,
-            },
-        );
-        self.save();
+
+        let inserted = self
+            .connection
+            .execute("insert into todos (item) values (?1)", [input]);
+
+        if inserted.is_err() {
+            println!("Failed to add todo")
+        }
     }
 
     pub fn delete(&mut self) {
         print!("Please enter the name of the todo to delete: ");
         flush_output();
 
-        match self.get_todo_item() {
-            Some(item) => {
-                self.todos.remove(&item.item);
-            }
-            _ => {
-                println!("Todo not found");
-            }
-        };
-        self.save();
+        let mut input = String::new();
+        read(&mut input);
+
+        let deleted = self
+            .connection
+            .execute("delete from todos where id = ?1", [input]);
+
+        if deleted.is_err() {
+            println!("Failed to delete todo");
+        }
     }
 
     pub fn update_todo(&mut self) {
@@ -111,25 +109,22 @@ impl TodoList {
                 read(&mut input);
 
                 match input.trim() {
-                    "y" | "n" => {
-                        let response = self.todos.insert(
-                            item.item.to_string(),
-                            Todo {
-                                item: item.item,
-                                is_done: input.trim() == "y",
-                            },
-                        );
-                        match response {
-                            Some(inserted) => {
-                                println!(
-                                    "Todo: {}, Update to {}",
-                                    inserted.item,
-                                    input.trim() == "y"
-                                )
-                            }
-                            _ => {
-                                println!("Failed to insert item");
-                            }
+                    "y" => {
+                        let stmt = self
+                            .connection
+                            .execute("update todos set is_done = 1 where id = ?1", [item.id]);
+
+                        if stmt.is_err() {
+                            println!("Failed to update todo");
+                        }
+                    }
+                    "n" => {
+                        let stmt = self
+                            .connection
+                            .execute("update todos set is_done = 0 where id = ?1", [item.id]);
+
+                        if stmt.is_err() {
+                            println!("Failed to update todo");
                         }
                     }
                     _ => {
@@ -139,26 +134,22 @@ impl TodoList {
             }
             _ => println!("Todo not found"),
         }
-        self.save();
     }
 
     pub fn list(&self) {
-        for todo in self.todos.values() {
-            println!("{}", todo);
-        }
-    }
+        let mut stmt = self.connection.prepare("select * from todos").unwrap();
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(Todo {
+                    id: row.get(0)?,
+                    item: row.get(1)?,
+                    is_done: row.get(2)?,
+                })
+            })
+            .unwrap()
+            .map(|row| row.unwrap())
+            .collect::<Vec<Todo>>();
 
-    pub fn save(&self) {
-        let result = match serde_json::to_string_pretty(&self.todos) {
-            Ok(result) => result,
-            Err(err) => {
-                println!("Failed to save file {err}");
-                return;
-            }
-        };
-
-        if let Err(e) = fs::write(TODOS_FILE, result) {
-            println!("Failed to save file {}", e);
-        }
+        println!("{}", Table::new(rows));
     }
 }

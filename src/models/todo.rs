@@ -1,14 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::fmt;
+use tabled::Tabled;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Tabled)]
 pub struct Todo {
+    pub id: u32,
     pub item: String,
-    pub is_done: bool,
-}
-
-impl fmt::Display for Todo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\n\nTask: {}\nis_done: {}", self.item, self.is_done)
-    }
+    pub is_done: u8,
 }
